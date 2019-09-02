@@ -163,6 +163,7 @@ public abstract class AbstractTaskHandler<T> implements TaskHandler<T> {
      */
     protected boolean handleCustomMessage(final Message message, final IntSupplier responseMessageIdSupplier,
         final Consumer<Message> responseConsumer, final Consumer<T> resultConsumer) throws Exception {
-        throw new UnsupportedOperationException("Custom message types are not supported by this task.");
+        throw new UnsupportedOperationException(
+            "Custom message types are not supported by this task (" + this.getClass().getSimpleName() + ").");
     }
 }

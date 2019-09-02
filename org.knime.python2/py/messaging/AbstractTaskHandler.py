@@ -94,4 +94,4 @@ class AbstractTaskHandler(object):
 
     def _handle_custom_message(self, message, response_message_id_supplier, response_consumer, result_consumer,
                                workspace):
-        raise NotImplementedError("Custom message types are not supported by this task.")
+        raise NotImplementedError("Custom message types are not supported by this task (" + str(type(self)) + ").")
