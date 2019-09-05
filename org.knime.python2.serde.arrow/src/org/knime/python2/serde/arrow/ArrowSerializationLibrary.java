@@ -76,6 +76,7 @@ import org.apache.arrow.vector.IntVector;
 import org.apache.arrow.vector.VarBinaryVector;
 import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.VectorSchemaRoot;
+import org.apache.arrow.vector.VectorUnloader;
 import org.apache.arrow.vector.ipc.ArrowStreamReader;
 import org.apache.arrow.vector.ipc.ArrowStreamWriter;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -147,6 +148,7 @@ import org.knime.python2.serde.arrow.inserters.StringListInserter;
 import org.knime.python2.serde.arrow.inserters.StringSetInserter;
 import org.knime.python2.util.PythonUtils;
 
+import com.appliomics.shmem.SharedNDArrayJNI;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
 /**
@@ -167,6 +169,8 @@ public class ArrowSerializationLibrary implements SerializationLibrary {
 
     /* Note: should be a power of 2 */
     private static final int ASSUMED_BYTES_VAL_BYTE_SIZE = 32;
+
+    private static final SharedNDArrayJNI shared = SharedNDArrayJNI.getInstance();
 
     private enum PandasType {
             BOOL("bool"), INT("int"), UNICODE("unicode"), BYTES("bytes");
@@ -455,8 +459,10 @@ public class ArrowSerializationLibrary implements SerializationLibrary {
                     fields.add(vec.getField());
                 }
                 final Schema schema = new Schema(fields, metadata);
+                final VectorSchemaRoot root = new VectorSchemaRoot(schema, vecs, numRows);
+                int numBytes = new VectorUnloader(root).getRecordBatch().computeBodyLength();
                 try (ArrowStreamWriter writer =
-                    new ArrowStreamWriter(new VectorSchemaRoot(schema, vecs, numRows), null, fc)) {
+                    new ArrowStreamWriter(root, null, fc)) {
                     writer.writeBatch();
                 }
             } finally {
