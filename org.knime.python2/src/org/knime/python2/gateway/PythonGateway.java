@@ -48,6 +48,15 @@
  */
 package org.knime.python2.gateway;
 
+import java.io.File;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.util.Collections;
+
+import org.knime.python.typeextension.PythonModuleExtensions;
+import org.knime.python2.Activator;
+import org.knime.python2.DefaultPythonCommand;
+
 import py4j.ClientServer;
 
 /**
@@ -80,23 +89,80 @@ public class PythonGateway implements AutoCloseable {
 
     private ClientServer m_clientServer;
 
+    private Process m_process;
+
+    private Integer m_pid;
+
     private PythonGateway() {
+        final ProcessBuilder pb =
+            new DefaultPythonCommand("/home/marcel/python-configs/knime_nodes.sh").createProcessBuilder();
+        final String gatewayModuleFilePath = "/home/marcel/git/knime-python/org.knime.python2/py/gateway/gateway.py";
+        // Use the -u options to force Python to not buffer stdout and stderror.
+        Collections.addAll(pb.command(), "-u", gatewayModuleFilePath);
+        // Add all python modules to PYTHONPATH variable.
+        String existingPath = pb.environment().get("PYTHONPATH");
+        existingPath = existingPath == null ? "" : existingPath;
+        String externalPythonPath = PythonModuleExtensions.getPythonPath();
+        externalPythonPath += File.pathSeparator + Activator.getFile(Activator.PLUGIN_ID, "py").getAbsolutePath();
+        if (!externalPythonPath.isEmpty()) {
+            if (existingPath.isEmpty()) {
+                existingPath = externalPythonPath;
+            } else {
+                existingPath = existingPath + File.pathSeparator + externalPythonPath;
+            }
+        }
+        existingPath = existingPath + File.pathSeparator;
+        pb.environment().put("PYTHONPATH", existingPath);
+
+        // pb.redirectOutput(ProcessBuilder.Redirect.PIPE);
+        // pb.redirectError(ProcessBuilder.Redirect.PIPE);
+        try {
+            m_process = pb.start();
+        } catch (final IOException ex) {
+            throw new UncheckedIOException(ex);
+        }
+
+        try {
+            Thread.sleep(5000);
+        } catch (final InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException(ex);
+        }
+
         m_clientServer = new ClientServer(null);
         final EntryPoint entry = (EntryPoint)m_clientServer.getPythonServerEntryPoint(new Class[]{EntryPoint.class});
-        entry.entry();
+        m_pid = entry.entry();
+        System.out.println("Python PID: " + m_pid);
     }
 
     @Override
     public void close() {
-        m_clientServer.shutdown();
-        m_clientServer = null;
-    }
-
-    /**
-     * @author Marcel Wiedenmann, KNIME GmbH, Konstanz, Germany
-     */
-    public interface EntryPoint {
-
-        public void entry();
+        if (m_clientServer != null) {
+            m_clientServer.shutdown();
+            // TODO: May require further cleanup. See: https://www.py4j.org/advanced_topics.html#py4j-memory-model
+            m_clientServer = null;
+        }
+        // If the original process was a script, we have to kill the actual Python process by PID.
+        if (m_pid != null) {
+            try {
+                ProcessBuilder pb;
+                if (System.getProperty("os.name").toLowerCase().contains("win")) {
+                    pb = new ProcessBuilder("taskkill", "/F", "/PID", "" + m_pid);
+                } else {
+                    pb = new ProcessBuilder("kill", "-KILL", "" + m_pid);
+                }
+                final Process p = pb.start();
+                p.waitFor();
+            } catch (final InterruptedException ex) {
+                // Closing the kernel should not be interrupted.
+                Thread.currentThread().interrupt();
+            } catch (final Exception ignore) {
+                // Ignore.
+            }
+        }
+        if (m_process != null) {
+            m_process.destroyForcibly();
+            // TODO: Further action required in case the process cannot be destroyed via Java. See PythonKernel#close()
+        }
     }
 }

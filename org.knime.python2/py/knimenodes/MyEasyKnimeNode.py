@@ -49,7 +49,7 @@ import numpy as np
 from pandas import DataFrame
 
 
-class MyPythonNode():
+class MyEasyPythonNode():
     column1: str = column(0)
     column2: str = column(1)
 
