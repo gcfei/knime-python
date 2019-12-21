@@ -47,8 +47,8 @@
 package org.knime.python2.gateway;
 
 import org.junit.Test;
-
-import py4j.Py4JException;
+import org.knime.python2.knimenodes.PythonNodeModel;
+import org.knime.python2.knimenodes.PythonWrappingNodeModel;
 
 /**
  * @author Marcel Wiedenmann, KNIME GmbH, Konstanz, Germany
@@ -58,11 +58,18 @@ public final class PythonGatewaySandbox {
 	@Test
 	public void run() {
 		try {
-			PythonGateway.getInstance();
-		} catch (final Py4JException ex) {
+			runInternal();
+		} catch (final Exception ex) {
 			System.out.println(ex);
+			throw ex;
 		} finally {
 			PythonGateway.shutdown();
 		}
+	}
+
+	private void runInternal() {
+		final EntryPoint entryPoint = PythonGateway.getInstance().getEntryPoint();
+		final PythonNodeModel nodeModel = entryPoint.getNodeModel();
+		final PythonWrappingNodeModel wrapper = new PythonWrappingNodeModel(nodeModel);
 	}
 }

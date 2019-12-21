@@ -53,6 +53,7 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.Collections;
 
+import org.apache.commons.lang.SystemUtils;
 import org.knime.python.typeextension.PythonModuleExtensions;
 import org.knime.python2.Activator;
 import org.knime.python2.DefaultPythonCommand;
@@ -91,7 +92,7 @@ public class PythonGateway implements AutoCloseable {
 
     private Process m_process;
 
-    private Integer m_pid;
+    private EntryPoint m_entryPoint;
 
     private PythonGateway() {
         final ProcessBuilder pb =
@@ -130,9 +131,12 @@ public class PythonGateway implements AutoCloseable {
         }
 
         m_clientServer = new ClientServer(null);
-        final EntryPoint entry = (EntryPoint)m_clientServer.getPythonServerEntryPoint(new Class[]{EntryPoint.class});
-        m_pid = entry.entry();
-        System.out.println("Python PID: " + m_pid);
+        m_entryPoint = (EntryPoint)m_clientServer.getPythonServerEntryPoint(new Class[]{EntryPoint.class});
+        System.out.println("Python pid: " + m_entryPoint.getPid());
+    }
+
+    public EntryPoint getEntryPoint() {
+        return m_entryPoint;
     }
 
     @Override
@@ -143,22 +147,21 @@ public class PythonGateway implements AutoCloseable {
             m_clientServer = null;
         }
         // If the original process was a script, we have to kill the actual Python process by PID.
-        if (m_pid != null) {
-            try {
-                ProcessBuilder pb;
-                if (System.getProperty("os.name").toLowerCase().contains("win")) {
-                    pb = new ProcessBuilder("taskkill", "/F", "/PID", "" + m_pid);
-                } else {
-                    pb = new ProcessBuilder("kill", "-KILL", "" + m_pid);
-                }
-                final Process p = pb.start();
-                p.waitFor();
-            } catch (final InterruptedException ex) {
-                // Closing the kernel should not be interrupted.
-                Thread.currentThread().interrupt();
-            } catch (final Exception ignore) {
-                // Ignore.
+        int pid = m_entryPoint.getPid();
+        try {
+            ProcessBuilder pb;
+            if (SystemUtils.IS_OS_WINDOWS) {
+                pb = new ProcessBuilder("taskkill", "/F", "/PID", "" + pid);
+            } else {
+                pb = new ProcessBuilder("kill", "-KILL", "" + pid);
             }
+            final Process p = pb.start();
+            p.waitFor();
+        } catch (final InterruptedException ex) {
+            // Closing the kernel should not be interrupted.
+            Thread.currentThread().interrupt();
+        } catch (final Exception ignore) {
+            // Ignore.
         }
         if (m_process != null) {
             m_process.destroyForcibly();

@@ -44,15 +44,74 @@
  * ---------------------------------------------------------------------
  *
  * History
- *   Dec 19, 2019 (marcel): created
+ *   Dec 21, 2019 (marcel): created
  */
-package org.knime.python2.gateway;
+package org.knime.python2.knimenodes;
 
-import org.knime.python2.knimenodes.PythonNodeModel;
+import java.io.File;
+import java.io.IOException;
 
-public interface EntryPoint {
+import org.knime.core.node.CanceledExecutionException;
+import org.knime.core.node.ExecutionContext;
+import org.knime.core.node.ExecutionMonitor;
+import org.knime.core.node.InvalidSettingsException;
+import org.knime.core.node.NodeModel;
+import org.knime.core.node.NodeSettingsRO;
+import org.knime.core.node.NodeSettingsWO;
+import org.knime.core.node.port.PortObject;
+import org.knime.core.node.port.PortObjectSpec;
 
-    int getPid();
+/**
+ * @author Marcel Wiedenmann, KNIME GmbH, Konstanz, Germany
+ */
+public class PythonWrappingNodeModel extends NodeModel {
 
-    PythonNodeModel getNodeModel();
+    private PythonNodeModel m_pythonNodeModel;
+
+    public PythonWrappingNodeModel(final PythonNodeModel pythonNodeModel) {
+        super(pythonNodeModel.getInputPortTypes(), pythonNodeModel.getOutputPortTypes());
+        m_pythonNodeModel = pythonNodeModel;
+    }
+
+    @Override
+    protected void loadInternals(final File nodeInternDir, final ExecutionMonitor exec)
+        throws IOException, CanceledExecutionException {
+        m_pythonNodeModel.loadInternals(nodeInternDir, exec);
+    }
+
+    @Override
+    protected void saveInternals(final File nodeInternDir, final ExecutionMonitor exec)
+        throws IOException, CanceledExecutionException {
+        m_pythonNodeModel.saveInternals(nodeInternDir, exec);
+    }
+
+    @Override
+    protected void saveSettingsTo(final NodeSettingsWO settings) {
+        m_pythonNodeModel.saveSettingsTo(settings);
+    }
+
+    @Override
+    protected void validateSettings(final NodeSettingsRO settings) throws InvalidSettingsException {
+        m_pythonNodeModel.validateSettings(settings);
+    }
+
+    @Override
+    protected void loadValidatedSettingsFrom(final NodeSettingsRO settings) throws InvalidSettingsException {
+        m_pythonNodeModel.loadValidatedSettingsFrom(settings);
+    }
+
+    @Override
+    protected PortObjectSpec[] configure(final PortObjectSpec[] inSpecs) throws InvalidSettingsException {
+        return m_pythonNodeModel.configure(inSpecs);
+    }
+
+    @Override
+    protected PortObject[] execute(final PortObject[] inObjects, final ExecutionContext exec) throws Exception {
+        return m_pythonNodeModel.execute(inObjects, exec);
+    }
+
+    @Override
+    protected void reset() {
+        m_pythonNodeModel.reset();
+    }
 }

@@ -45,17 +45,17 @@
 @author Marcel Wiedenmann, KNIME GmbH, Konstanz, Germany
 """
 
-import numpy as np
-from pandas import DataFrame
-
-from py4j.java_gateway import get_field
-
-# Import KNIME classes:
-from gateway import global_gateway as gg
+from py4j.java_gateway import is_instance_of
 from py4j.java_gateway import java_import
 
-knime = gg.new_jvm_view()
+# Import KNIME classes:
+from knimegateway.knimegateway import client_server as cs
+
+knime = cs.new_jvm_view()
 java_import(knime, 'java.io.File')
+java_import(knime, 'org.knime.core.data.DoubleValue')
+java_import(knime, 'org.knime.core.data.IntValue')
+java_import(knime, 'org.knime.core.data.container.filter.TableFilter')
 java_import(knime, 'org.knime.core.data.def.DoubleCell')
 java_import(knime, 'org.knime.core.data.def.IntCell')
 java_import(knime, 'org.knime.core.node.BufferedDataTable')
@@ -63,6 +63,8 @@ java_import(knime, 'org.knime.core.node.ExecutionContext')
 java_import(knime, 'org.knime.core.node.ExecutionMonitor')
 java_import(knime, 'org.knime.core.node.NodeSettingsRO')
 java_import(knime, 'org.knime.core.node.NodeSettingsWO')
+java_import(knime, 'org.knime.core.node.defaultnodesettings.SettingsModelInteger')
+java_import(knime, 'org.knime.core.node.defaultnodesettings.SettingsModelString')
 java_import(knime, 'org.knime.core.node.port.PortObject')
 java_import(knime, 'org.knime.core.node.port.PortObjectSpec')
 java_import(knime, 'org.knime.core.node.port.PortType')
@@ -70,22 +72,49 @@ java_import(knime, 'org.knime.core.node.port.PortType')
 # Type hints
 from typing import Sequence
 
-
 # TODO: Remove all the py4j-specific (and/or tedious Java-specific) stuff from user code.
 
+_operators = cs.new_array(str, 4)
+_operators[0] = '+'
+_operators[1] = '-'
+_operators[2] = '*'
+_operators[3] = '/'
 
-class MyStandardPythonNode():
 
-    # TODO: Add settings models
+class MyStandardKnimeNode():
+
+    @staticmethod
+    def _create_operand1_settings() -> knime.SettingsModelString:
+        return knime.SettingsModelString("first_operand", "")
+
+    @staticmethod
+    def _create_operand2_settings() -> knime.SettingsModelString:
+        return knime.SettingsModelString("second_operand", "")
+
+    @staticmethod
+    def _create_operator_settings() -> knime.SettingsModelString:
+        return knime.SettingsModelString("operator", _operators[0])
+
+    @staticmethod
+    def _create_constant_settings() -> knime.SettingsModelInteger:
+        return knime.SettingsModelInteger("constant", 42)
+
+    _operand1_settings = _create_operand1_settings()
+    _operand2_settings = _create_operand2_settings()
+    _operator_settings = _create_operator_settings()
+    _constant_settings = _create_constant_settings()
+
+    def __init__(self):
+        pass
 
     def getInputPortTypes(self) -> Sequence[knime.PortType]:
-        types = gg.new_array(knime.PortType, 2)
+        types = cs.new_array(knime.PortType, 2)
         types[0] = knime.BufferedDataTable.TYPE
         types[1] = knime.BufferedDataTable.TYPE
         return types
 
     def getOutputPortTypes(self) -> Sequence[knime.PortType]:
-        types = gg.new_array(knime.PortType, 1)
+        types = cs.new_array(knime.PortType, 1)
         types[0] = knime.BufferedDataTable.TYPE
         return types
 
@@ -98,59 +127,89 @@ class MyStandardPythonNode():
         pass
 
     def saveSettingsTo(self, settings: knime.NodeSettingsWO):
-        # TODO: Implement
-        pass
+        self._operand1_settings.saveSettingsTo(settings)
+        self._operand2_settings.saveSettingsTo(settings)
+        self._operator_settings.saveSettingsTo(settings)
+        self._constant_settings.saveSettingsTo(settings)
 
     def validateSettings(self, settings: knime.NodeSettingsRO):
-        # TODO: Implement
-        pass
+        self._operand1_settings.validateSettings(settings)
+        self._operand2_settings.validateSettings(settings)
+        self._operator_settings.validateSettings(settings)
+        self._constant_settings.validateSettings(settings)
 
     def loadValidatedSettingsFrom(self, settings: knime.NodeSettingsRO):
-        # TODO: Implement
-        pass
+        self._operand1_settings.loadSettingsFrom(settings)
+        self._operand2_settings.loadSettingsFrom(settings)
+        self._operator_settings.loadSettingsFrom(settings)
+        self._constant_settings.loadSettingsFrom(settings)
 
     def configure(self, inSpecs: Sequence[knime.PortObjectSpec]) -> Sequence[knime.PortObjectSpec]:
         table_spec1 = inSpecs[0]
-        column_spec1 = table_spec1.getColumnSpec(table1Column.getStringValue())
+        column_spec1 = table_spec1.getColumnSpec(self._operand1_settings.getStringValue())
         column1_type = column_spec1.getType()
 
         table_spec2 = inSpecs[1]
-        column_spec2 = table_spec2.getColumnSpec(table2Column.getStringValue())
+        column_spec2 = table_spec2.getColumnSpec(self._operand2_settings.getStringValue())
         column2_type = column_spec2.getType()
 
-        # TODO: Fill in DataValue arguments
-        if column1_type.isCompatible() and column2_type.isCompatible():
-            if operator.getStringValue() != "/":
+        if column1_type.isCompatible(knime.IntValue) and column2_type.isCompatible(knime.IntValue):
+            if self._operator_settings.getStringValue() != "/":
                 out_type = knime.IntCell.TYPE
             else:
                 out_type = knime.DoubleCell.TYPE
-        elif column1_type.isCompatible() and column2_type.isCompatible():
+        elif column1_type.isCompatible(knime.DoubleValue) and column2_type.isCompatible(knime.DoubleValue):
             out_type = knime.DoubleCell.TYPE
         else:
             # TODO: Translate to InvalidSettingsException?
             raise TypeError(
-                "Input columns must both be either of type 'Number (integer)' or of type 'Number (double)'.")
+                "Operands must both be either of type 'Number (integer)' or of type 'Number (double)'.")
         return {'name': "Calculated value", 'type': out_type}
 
     def execute(self, inObjects: Sequence[knime.PortObject], exec: knime.ExecutionContext) -> Sequence[
         knime.PortObject]:
         table1 = inObjects[0]
+        table_spec1 = table1.getDataTableSpec()
         table2 = inObjects[1]
+        table_spec2 = table2.getDataTableSpec()
 
-        # TODO:
-        #  table1.iteratorWithFilter()
-        #  table2.iteratorWithFilter()
+        if table1.size() != table2.size():
+            raise ValueError("Input tables are not equal in size.")
 
-        if self.operation == '+':
-            return number1 + number2 / self.constant
-        elif self.operation == '-':
-            return number1 - number2 / self.constant
-        elif self.operation == '*':
-            return number1 * number2 / self.constant
-        elif self.operation == '/':
-            return number1 / number2 / self.constant
-        else:
-            raise ValueError('Unknown operation: ' + self.operation)
+        operand1_name = self._operand1_settings.getStringValue()
+        column1_iterator = table1.iteratorWithFilter(
+            knime.TableFilter.materializeCols(table_spec1, operand1_name))
+        operand2_name = self._operand2_settings.getStringValue()
+        column2_iterator = table2.iteratorWithFilter(
+            knime.TableFilter.materializeCols(table_spec2, operand2_name))
+
+        operator = self._operator_settings.getStringValue()
+        constant = self._constant_settings.getIntValue()
+
+        while column1_iterator.hasNext():
+            operand1_cell = column1_iterator.next()
+            operand2_cell = column2_iterator.next()
+
+            if is_instance_of(cs, operand1_cell, knime.IntValue):
+                operand1 = operand1_cell.getIntValue()
+            else:
+                operand1 = operand1_cell.getDoubleValue()
+
+            if is_instance_of(cs, operand2_cell, knime.IntValue):
+                operand2 = operand2_cell.getIntValue()
+            else:
+                operand2 = operand2_cell.getDoubleValue()
+
+            if operator == '+':
+                return operand1 + operand2 + constant
+            elif operator == '-':
+                return operand1 - operand2 - constant
+            elif operator == '*':
+                return operand1 * operand2 * constant
+            elif operator == '/':
+                return operand1 / operand2 / constant
+            else:
+                raise ValueError('Unknown operator: ' + operator)
 
     def reset(self):
         # Nothing to do.
