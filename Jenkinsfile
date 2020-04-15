@@ -12,6 +12,11 @@ properties([
     disableConcurrentBuilds()
 ])
 
+def testConfigurations = [
+	"ubuntu18.04 && python3 && python2",
+	// "windows && python3"
+]
+
 try {
 	// provide the name of the update site project
 	knimetools.defaultTychoBuild('org.knime.update.python', 'maven && python2 && python3')
@@ -22,7 +27,8 @@ try {
                 'knime-python', 'knime-filehandling', 'knime-xml', 'knime-datageneration', 'knime-jep',
                 'knime-ensembles', 'knime-jfreechart', 'knime-database', 'knime-svg', /*'knime-orc', 'knime-chemistry' */
             ]
-        ]
+        ],
+		configurations: testConfigurations
 	)
 
 	stage('Sonarqube analysis') {
