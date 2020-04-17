@@ -43,61 +43,52 @@
  *  when such Node is propagated with or for interoperation with KNIME.
  * ---------------------------------------------------------------------
  *
- * History
- *   Feb 24, 2019 (marcel): created
  */
-package org.knime.python2.prefs;
+package org.knime.python2.prefs.advanced;
 
-import org.knime.core.node.defaultnodesettings.SettingsModelBoolean;
 import org.knime.core.node.defaultnodesettings.SettingsModelInteger;
-import org.knime.core.node.defaultnodesettings.SettingsModelString;
+import org.knime.python2.Activator;
 import org.knime.python2.config.PythonConfigStorage;
+import org.knime.python2.config.advanced.PythonKernelQueueConfig;
+import org.knime.python2.prefs.DefaultScopePreferenceStorage;
+import org.knime.python2.prefs.InstanceScopePreferenceStorage;
+import org.knime.python2.prefs.PreferenceStorage;
+import org.knime.python2.prefs.PreferenceWrappingConfigStorage;
 
 /**
- * Implementation note: We do not save the enabled state at the moment to not clutter the preferences file
- * unnecessarily.
+ * Convenience front-end of the advanced preference-based configuration of the Python integration.
  *
  * @author Marcel Wiedenmann, KNIME GmbH, Konstanz, Germany
  * @author Christian Dietz, KNIME GmbH, Konstanz, Germany
  */
-public final class PreferenceWrappingConfigStorage implements PythonConfigStorage {
+public final class PythonAdvancedPreferences {
 
-    private final PreferenceStorage m_preferences;
+    private static final PreferenceStorage DEFAULT_SCOPE_PREFERENCES =
+        new DefaultScopePreferenceStorage(Activator.PLUGIN_ID);
 
-    public PreferenceWrappingConfigStorage(final PreferenceStorage preferences) {
-        m_preferences = preferences;
+    private static final PreferenceStorage CURRENT_SCOPE_PREFERENCES =
+        new InstanceScopePreferenceStorage(Activator.PLUGIN_ID, DEFAULT_SCOPE_PREFERENCES);
+
+    /**
+     * Accessed by preference page.
+     */
+    static final PythonConfigStorage CURRENT = new PreferenceWrappingConfigStorage(CURRENT_SCOPE_PREFERENCES);
+
+    /**
+     * Accessed by preference page and preferences initializer.
+     */
+    static final PythonConfigStorage DEFAULT = new PreferenceWrappingConfigStorage(DEFAULT_SCOPE_PREFERENCES);
+
+    private PythonAdvancedPreferences() {}
+
+    public static SettingsModelInteger getMaximumNumberOfIdlingProcesses() {
+        final PythonKernelQueueConfig kernelQueueConfig = loadKernelQueueConfig();
+        return kernelQueueConfig.getMaxNumberOfIdlingProcesses();
     }
 
-    @Override
-    public void saveBooleanModel(final SettingsModelBoolean model) {
-        m_preferences.writeBoolean(model.getConfigName(), model.getBooleanValue());
-    }
-
-    @Override
-    public void saveIntegerModel(final SettingsModelInteger model) {
-        m_preferences.writeInt(model.getKey(), model.getIntValue());
-    }
-
-    @Override
-    public void saveStringModel(final SettingsModelString model) {
-        m_preferences.writeString(model.getKey(), model.getStringValue());
-    }
-
-    @Override
-    public void loadBooleanModel(final SettingsModelBoolean model) {
-        final boolean value = m_preferences.readBoolean(model.getConfigName(), model.getBooleanValue());
-        model.setBooleanValue(value);
-    }
-
-    @Override
-    public void loadIntegerModel(final SettingsModelInteger model) {
-        final int value = m_preferences.readInt(model.getKey(), model.getIntValue());
-        model.setIntValue(value);
-    }
-
-    @Override
-    public void loadStringModel(final SettingsModelString model) {
-        final String value = m_preferences.readString(model.getKey(), model.getStringValue());
-        model.setStringValue(value);
+    private static PythonKernelQueueConfig loadKernelQueueConfig() {
+        final PythonKernelQueueConfig kernelQueueConfig = new PythonKernelQueueConfig();
+        kernelQueueConfig.loadConfigFrom(CURRENT);
+        return kernelQueueConfig;
     }
 }

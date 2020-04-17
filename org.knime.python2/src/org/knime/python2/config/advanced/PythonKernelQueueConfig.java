@@ -44,60 +44,53 @@
  * ---------------------------------------------------------------------
  *
  * History
- *   Feb 24, 2019 (marcel): created
+ *   Jan 25, 2019 (marcel): created
  */
-package org.knime.python2.prefs;
+package org.knime.python2.config.advanced;
 
-import org.knime.core.node.defaultnodesettings.SettingsModelBoolean;
 import org.knime.core.node.defaultnodesettings.SettingsModelInteger;
-import org.knime.core.node.defaultnodesettings.SettingsModelString;
+import org.knime.python2.config.PythonConfig;
 import org.knime.python2.config.PythonConfigStorage;
 
 /**
- * Implementation note: We do not save the enabled state at the moment to not clutter the preferences file
- * unnecessarily.
- *
  * @author Marcel Wiedenmann, KNIME GmbH, Konstanz, Germany
  * @author Christian Dietz, KNIME GmbH, Konstanz, Germany
  */
-public final class PreferenceWrappingConfigStorage implements PythonConfigStorage {
+public final class PythonKernelQueueConfig implements PythonConfig {
 
-    private final PreferenceStorage m_preferences;
+    // TODO: change keys, should be concise and expressive since user may configure the preference file manually
 
-    public PreferenceWrappingConfigStorage(final PreferenceStorage preferences) {
-        m_preferences = preferences;
+    public static final String CFG_KEY_MAX_NUMBER_OF_IDLING_PROCESSES = "maxNumberOfIdlingProcesses";
+
+    public static final int DEFAULT_MAX_NUMBER_OF_IDLING_PROCESSES = 3;
+
+    public static final String CFG_KEY_EXPIRATION_DURATION_IN_SECONDS = "expirationDuration";
+
+    public static final int DEFAULT_EXPIRATION_DURATION_IN_SECONDS = 5 * 60;
+
+    private final SettingsModelInteger m_maxNumberOfIdlingKernels =
+        new SettingsModelInteger(CFG_KEY_MAX_NUMBER_OF_IDLING_PROCESSES, DEFAULT_MAX_NUMBER_OF_IDLING_PROCESSES);
+
+    private final SettingsModelInteger m_expirationDurationInSeconds =
+        new SettingsModelInteger(CFG_KEY_EXPIRATION_DURATION_IN_SECONDS, DEFAULT_EXPIRATION_DURATION_IN_SECONDS);
+
+    public SettingsModelInteger getMaxNumberOfIdlingProcesses() {
+        return m_maxNumberOfIdlingKernels;
+    }
+
+    public SettingsModelInteger getExpirationDurationInSeconds() {
+        return m_expirationDurationInSeconds;
     }
 
     @Override
-    public void saveBooleanModel(final SettingsModelBoolean model) {
-        m_preferences.writeBoolean(model.getConfigName(), model.getBooleanValue());
+    public void saveConfigTo(final PythonConfigStorage storage) {
+        storage.saveIntegerModel(m_maxNumberOfIdlingKernels);
+        storage.saveIntegerModel(m_expirationDurationInSeconds);
     }
 
     @Override
-    public void saveIntegerModel(final SettingsModelInteger model) {
-        m_preferences.writeInt(model.getKey(), model.getIntValue());
-    }
-
-    @Override
-    public void saveStringModel(final SettingsModelString model) {
-        m_preferences.writeString(model.getKey(), model.getStringValue());
-    }
-
-    @Override
-    public void loadBooleanModel(final SettingsModelBoolean model) {
-        final boolean value = m_preferences.readBoolean(model.getConfigName(), model.getBooleanValue());
-        model.setBooleanValue(value);
-    }
-
-    @Override
-    public void loadIntegerModel(final SettingsModelInteger model) {
-        final int value = m_preferences.readInt(model.getKey(), model.getIntValue());
-        model.setIntValue(value);
-    }
-
-    @Override
-    public void loadStringModel(final SettingsModelString model) {
-        final String value = m_preferences.readString(model.getKey(), model.getStringValue());
-        model.setStringValue(value);
+    public void loadConfigFrom(final PythonConfigStorage storage) {
+        storage.loadIntegerModel(m_maxNumberOfIdlingKernels);
+        storage.loadIntegerModel(m_expirationDurationInSeconds);
     }
 }

@@ -1,6 +1,5 @@
 /*
  * ------------------------------------------------------------------------
- *
  *  Copyright by KNIME AG, Zurich, Switzerland
  *  Website: http://www.knime.com; Email: contact@knime.com
  *
@@ -41,63 +40,28 @@
  *  propagated with or for interoperation with KNIME.  The owner of a Node
  *  may freely choose the license terms applicable to such Node, including
  *  when such Node is propagated with or for interoperation with KNIME.
- * ---------------------------------------------------------------------
- *
- * History
- *   Feb 24, 2019 (marcel): created
+ * ------------------------------------------------------------------------
  */
-package org.knime.python2.prefs;
 
-import org.knime.core.node.defaultnodesettings.SettingsModelBoolean;
-import org.knime.core.node.defaultnodesettings.SettingsModelInteger;
-import org.knime.core.node.defaultnodesettings.SettingsModelString;
+package org.knime.python2.prefs.advanced;
+
+import org.eclipse.core.runtime.preferences.AbstractPreferenceInitializer;
 import org.knime.python2.config.PythonConfigStorage;
+import org.knime.python2.config.advanced.PythonKernelQueueConfig;
 
 /**
- * Implementation note: We do not save the enabled state at the moment to not clutter the preferences file
- * unnecessarily.
+ * Preference initializer for the advanced preferences of the org.knime.python2 plugin.
  *
  * @author Marcel Wiedenmann, KNIME GmbH, Konstanz, Germany
  * @author Christian Dietz, KNIME GmbH, Konstanz, Germany
  */
-public final class PreferenceWrappingConfigStorage implements PythonConfigStorage {
-
-    private final PreferenceStorage m_preferences;
-
-    public PreferenceWrappingConfigStorage(final PreferenceStorage preferences) {
-        m_preferences = preferences;
-    }
+public final class PythonAdvancedPreferencesInitializer extends AbstractPreferenceInitializer {
 
     @Override
-    public void saveBooleanModel(final SettingsModelBoolean model) {
-        m_preferences.writeBoolean(model.getConfigName(), model.getBooleanValue());
-    }
+    public void initializeDefaultPreferences() {
+        final PythonConfigStorage defaultPreferences = PythonAdvancedPreferences.DEFAULT;
 
-    @Override
-    public void saveIntegerModel(final SettingsModelInteger model) {
-        m_preferences.writeInt(model.getKey(), model.getIntValue());
-    }
-
-    @Override
-    public void saveStringModel(final SettingsModelString model) {
-        m_preferences.writeString(model.getKey(), model.getStringValue());
-    }
-
-    @Override
-    public void loadBooleanModel(final SettingsModelBoolean model) {
-        final boolean value = m_preferences.readBoolean(model.getConfigName(), model.getBooleanValue());
-        model.setBooleanValue(value);
-    }
-
-    @Override
-    public void loadIntegerModel(final SettingsModelInteger model) {
-        final int value = m_preferences.readInt(model.getKey(), model.getIntValue());
-        model.setIntValue(value);
-    }
-
-    @Override
-    public void loadStringModel(final SettingsModelString model) {
-        final String value = m_preferences.readString(model.getKey(), model.getStringValue());
-        model.setStringValue(value);
+        final PythonKernelQueueConfig defaultKernelQueueConfig = new PythonKernelQueueConfig();
+        defaultKernelQueueConfig.saveConfigTo(defaultPreferences);
     }
 }

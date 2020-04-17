@@ -1,6 +1,5 @@
 /*
  * ------------------------------------------------------------------------
- *
  *  Copyright by KNIME AG, Zurich, Switzerland
  *  Website: http://www.knime.com; Email: contact@knime.com
  *
@@ -41,63 +40,47 @@
  *  propagated with or for interoperation with KNIME.  The owner of a Node
  *  may freely choose the license terms applicable to such Node, including
  *  when such Node is propagated with or for interoperation with KNIME.
- * ---------------------------------------------------------------------
+ * ------------------------------------------------------------------------
  *
- * History
- *   Feb 24, 2019 (marcel): created
  */
-package org.knime.python2.prefs;
+package org.knime.python2.prefs.advanced;
 
-import org.knime.core.node.defaultnodesettings.SettingsModelBoolean;
-import org.knime.core.node.defaultnodesettings.SettingsModelInteger;
-import org.knime.core.node.defaultnodesettings.SettingsModelString;
-import org.knime.python2.config.PythonConfigStorage;
+import java.util.List;
+
+import org.eclipse.swt.widgets.Composite;
+import org.knime.python2.config.PythonConfig;
+import org.knime.python2.config.advanced.PythonKernelQueueConfig;
+import org.knime.python2.kernel.PythonKernelQueue;
+import org.knime.python2.prefs.AbstractPythonPreferencePage;
 
 /**
- * Implementation note: We do not save the enabled state at the moment to not clutter the preferences file
- * unnecessarily.
+ * Preference page for advanced configurations of the org.knime.python2 plug-in (e.g. of the {@link PythonKernelQueue}.
  *
  * @author Marcel Wiedenmann, KNIME GmbH, Konstanz, Germany
  * @author Christian Dietz, KNIME GmbH, Konstanz, Germany
  */
-public final class PreferenceWrappingConfigStorage implements PythonConfigStorage {
+public final class PythonAdvancedPreferencePage extends AbstractPythonPreferencePage {
 
-    private final PreferenceStorage m_preferences;
-
-    public PreferenceWrappingConfigStorage(final PreferenceStorage preferences) {
-        m_preferences = preferences;
+    public PythonAdvancedPreferencePage() {
+        super(PythonAdvancedPreferences.CURRENT, PythonAdvancedPreferences.DEFAULT);
     }
 
     @Override
-    public void saveBooleanModel(final SettingsModelBoolean model) {
-        m_preferences.writeBoolean(model.getConfigName(), model.getBooleanValue());
+    @SuppressWarnings("unused") // References to some panels are not needed; everything is done in their constructor.
+    protected void populatePageBody(final Composite container, final List<PythonConfig> configs) {
+        // Kernel queue configuration:
+        final PythonKernelQueueConfig kernelQueueConfig = new PythonKernelQueueConfig();
+        configs.add(kernelQueueConfig);
+        new PythonKernelQueuePreferencePanel(kernelQueueConfig, container);
     }
 
     @Override
-    public void saveIntegerModel(final SettingsModelInteger model) {
-        m_preferences.writeInt(model.getKey(), model.getIntValue());
+    protected void reflectLoadedConfigurations() {
+        // Nothing to do.
     }
 
     @Override
-    public void saveStringModel(final SettingsModelString model) {
-        m_preferences.writeString(model.getKey(), model.getStringValue());
-    }
-
-    @Override
-    public void loadBooleanModel(final SettingsModelBoolean model) {
-        final boolean value = m_preferences.readBoolean(model.getConfigName(), model.getBooleanValue());
-        model.setBooleanValue(value);
-    }
-
-    @Override
-    public void loadIntegerModel(final SettingsModelInteger model) {
-        final int value = m_preferences.readInt(model.getKey(), model.getIntValue());
-        model.setIntValue(value);
-    }
-
-    @Override
-    public void loadStringModel(final SettingsModelString model) {
-        final String value = m_preferences.readString(model.getKey(), model.getStringValue());
-        model.setStringValue(value);
+    protected void setupHooks() {
+        // Nothing to do.
     }
 }
