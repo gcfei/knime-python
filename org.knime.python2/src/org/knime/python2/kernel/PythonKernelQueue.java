@@ -60,6 +60,7 @@ import org.apache.commons.pool2.impl.GenericKeyedObjectPool;
 import org.apache.commons.pool2.impl.GenericKeyedObjectPoolConfig;
 import org.knime.python2.PythonCommand;
 import org.knime.python2.PythonModuleSpec;
+import org.knime.python2.prefs.advanced.PythonAdvancedPreferences;
 import org.knime.python2.util.PythonUtils;
 
 import com.google.common.collect.Iterables;
@@ -84,14 +85,14 @@ public final class PythonKernelQueue {
     /**
      * The capacity of the queue.
      */
-    private static final int MAX_NUMBER_OF_POOLED_KERNELS = 3;
+    public static final int MAX_NUMBER_OF_IDLING_KERNELS = 3;
 
     /**
      * Note: the duration until expired entries are actually evicted is generally longer than this value because the
      * underlying pool performs clean-ups in a timer-based manner. The clean-up interval of the timer is governed by
-     * {@link #EVICTION_CHECK_INTERVAL_IN_MILLISECONDS}.
+     * {@code EVICTION_CHECK_INTERVAL_IN_MILLISECONDS}.
      */
-    private static final int EXPIRATION_DURATION_IN_MILLISECONDS = 5 * 60 * 1000;
+    public static final int EXPIRATION_DURATION_IN_SECONDS = 5 * 60;
 
     private static final int EVICTION_CHECK_INTERVAL_IN_MILLISECONDS = 60 * 1000;
 
@@ -100,7 +101,7 @@ public final class PythonKernelQueue {
     /**
      * The singleton instance.
      */
-    private static final PythonKernelQueue INSTANCE = new PythonKernelQueue();
+    private static PythonKernelQueue instance;
 
     /**
      * Takes the next {@link PythonKernel} from the queue that was launched using the given {@link PythonCommand} and
@@ -134,8 +135,22 @@ public final class PythonKernelQueue {
         final Set<PythonModuleSpec> requiredAdditionalModules, final Set<PythonModuleSpec> optionalAdditionalModules,
         final PythonKernelOptions options, final PythonCancelable cancelable)
         throws PythonCanceledExecutionException, PythonIOException {
-        return INSTANCE.getNextKernelInternal(command, requiredAdditionalModules, optionalAdditionalModules, options,
-            cancelable);
+        return getInstance().getNextKernelInternal(command, requiredAdditionalModules, optionalAdditionalModules,
+            options, cancelable);
+    }
+
+    private static synchronized PythonKernelQueue getInstance() {
+        if (instance == null) {
+            reconfigureKernelQueue(PythonAdvancedPreferences.getMaximumNumberOfIdlingProcesses(),
+                PythonAdvancedPreferences.getExpirationDurationInSeconds());
+        }
+        return instance;
+    }
+
+    public static synchronized void reconfigureKernelQueue(final int maxNumberOfIdlingKernels,
+        final int expirationDurationInSeconds) {
+        close();
+        instance = new PythonKernelQueue(maxNumberOfIdlingKernels, expirationDurationInSeconds);
     }
 
     /**
@@ -143,8 +158,10 @@ public final class PythonKernelQueue {
      * {@link #getNextKernel(PythonCommand, Set, Set, PythonKernelOptions, PythonCancelable) getNextKernel} is not
      * allowed once the queue is closed.
      */
-    public static void close() {
-        INSTANCE.m_pool.close();
+    public static synchronized void close() {
+        if (instance != null) {
+            instance.m_pool.close();
+        }
     }
 
     // Instance:
@@ -159,17 +176,17 @@ public final class PythonKernelQueue {
      */
     private final GenericKeyedObjectPool<PythonCommandAndModules, PythonKernelOrExceptionHolder> m_pool;
 
-    private PythonKernelQueue() {
+    private PythonKernelQueue(final int maxNumberOfIdlingKernels, final int expirationDurationInSeconds) {
         final GenericKeyedObjectPoolConfig<PythonKernelOrExceptionHolder> config = new GenericKeyedObjectPoolConfig<>();
         config.setEvictorShutdownTimeoutMillis(0);
         config.setFairness(true);
         config.setJmxEnabled(false);
         config.setLifo(false);
         config.setMaxIdlePerKey(-1);
-        config.setMaxTotal(MAX_NUMBER_OF_POOLED_KERNELS);
+        config.setMaxTotal(maxNumberOfIdlingKernels);
         config.setMaxTotalPerKey(-1);
         config.setMaxWaitMillis(CANCELLATION_CHECK_INTERVAL_IN_MILLISECONDS);
-        config.setMinEvictableIdleTimeMillis(EXPIRATION_DURATION_IN_MILLISECONDS);
+        config.setMinEvictableIdleTimeMillis(expirationDurationInSeconds * 1000l);
         config.setNumTestsPerEvictionRun(-1);
         config.setTimeBetweenEvictionRunsMillis(EVICTION_CHECK_INTERVAL_IN_MILLISECONDS);
         m_pool = new GenericKeyedObjectPool<>(new KeyedPooledPythonKernelFactory(), config);

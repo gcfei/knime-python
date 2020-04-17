@@ -83,4 +83,28 @@ public final class PythonAdvancedPreferencePage extends AbstractPythonPreference
     protected void setupHooks() {
         // Nothing to do.
     }
+
+    @Override
+    public boolean performOk() {
+        final boolean result = super.performOk();
+        reconfigureKernelQueue();
+        return result;
+    }
+
+    @Override
+    protected void performApply() {
+        super.performApply();
+        reconfigureKernelQueue();
+    }
+
+    @Override
+    protected void performDefaults() {
+        super.performDefaults();
+        reconfigureKernelQueue();
+    }
+
+    private static void reconfigureKernelQueue() {
+        PythonKernelQueue.reconfigureKernelQueue(PythonAdvancedPreferences.getMaximumNumberOfIdlingProcesses(),
+            PythonAdvancedPreferences.getExpirationDurationInSeconds());
+    }
 }

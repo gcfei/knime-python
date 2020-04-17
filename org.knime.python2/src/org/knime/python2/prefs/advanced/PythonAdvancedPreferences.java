@@ -46,7 +46,6 @@
  */
 package org.knime.python2.prefs.advanced;
 
-import org.knime.core.node.defaultnodesettings.SettingsModelInteger;
 import org.knime.python2.Activator;
 import org.knime.python2.config.PythonConfigStorage;
 import org.knime.python2.config.advanced.PythonKernelQueueConfig;
@@ -81,9 +80,12 @@ public final class PythonAdvancedPreferences {
 
     private PythonAdvancedPreferences() {}
 
-    public static SettingsModelInteger getMaximumNumberOfIdlingProcesses() {
-        final PythonKernelQueueConfig kernelQueueConfig = loadKernelQueueConfig();
-        return kernelQueueConfig.getMaxNumberOfIdlingProcesses();
+    public static int getMaximumNumberOfIdlingProcesses() {
+        return loadKernelQueueConfig().getMaxNumberOfIdlingProcesses().getIntValue();
+    }
+
+    public static int getExpirationDurationInSeconds() {
+        return loadKernelQueueConfig().getExpirationDurationInSeconds().getIntValue();
     }
 
     private static PythonKernelQueueConfig loadKernelQueueConfig() {

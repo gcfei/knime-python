@@ -66,6 +66,11 @@ public final class PythonKernelQueueConfig implements PythonConfig {
 
     public static final String CFG_KEY_EXPIRATION_DURATION_IN_SECONDS = "expirationDuration";
 
+    /**
+     * Note: the duration until expired entries are actually evicted is generally longer than this value because the
+     * underlying pool performs clean-ups in a timer-based manner. The clean-up interval of the timer is governed by
+     * {@link #EVICTION_CHECK_INTERVAL_IN_MILLISECONDS}.
+     */
     public static final int DEFAULT_EXPIRATION_DURATION_IN_SECONDS = 5 * 60;
 
     private final SettingsModelInteger m_maxNumberOfIdlingKernels =
